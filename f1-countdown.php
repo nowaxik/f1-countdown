@@ -104,7 +104,7 @@ function f1_add_styles() {
             align-items: center;
             justify-content: space-between;
             flex-wrap: nowrap;
-            min-height: 60px;
+            min-height: 0px;
         }
         #f1-countdown .f1-countdown-info {
             flex: 1 1 220px;
