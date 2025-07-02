@@ -11,7 +11,7 @@ Author: Marcin
 // Zabezpieczenie przed bezpośrednim dostępem do pliku
 if (!defined('ABSPATH')) exit;
 
-// Funkcja odpowiedzialna za pobranie informacji o aktualnej lub najbliższej sesji F1
+// Funkcja pobierająca aktualną lub najbliższą sesję F1 z pliku JSON
 function f1_get_relevant_session() {
     $json_path = plugin_dir_path(__FILE__) . 'data/f1_schedule.json';
     if (!file_exists($json_path)) {
@@ -33,14 +33,16 @@ function f1_get_relevant_session() {
             $start_time = strtotime($session['datetime']);
             if (!$start_time) continue;
             $end_time = $start_time + ((isset($session['duration_minutes']) ? $session['duration_minutes'] : 60) * 60);
+            // Sprawdź, czy sesja trwa
             if ($now >= $start_time && $now <= $end_time) {
                 $active_session = [
                     'status' => 'active',
                     'gp_name' => $gp['gp_name'],
                     'session_name' => $session['name']
                 ];
-                break 2;
+                break 2; // Zakończ pętlę, jeśli znaleziono aktywną sesję
             }
+            // Sprawdź, czy to najbliższa przyszła sesja
             if ($start_time > $now && ($start_time - $now) < $min_diff) {
                 $min_diff = $start_time - $now;
                 $next_session = [
@@ -53,10 +55,11 @@ function f1_get_relevant_session() {
             }
         }
     }
+    // Zwróć aktywną sesję, jeśli jest, w przeciwnym razie najbliższą, a jeśli nie ma żadnej – status zakończenia sezonu
     return $active_session ?: $next_session ?: ['status' => 'season_over'];
 }
 
-// Załaduj JS i przekaż dane do frontendu
+// Załaduj JS i przekaż dane do frontendu (do obsługi odliczania po stronie klienta)
 function f1_enqueue_scripts() {
     wp_enqueue_script('f1-countdown-script', plugin_dir_url(__FILE__) . 'assets/script.js', [], '1.2', true);
     $session = f1_get_relevant_session();
@@ -64,117 +67,102 @@ function f1_enqueue_scripts() {
 }
 add_action('wp_enqueue_scripts', 'f1_enqueue_scripts');
 
-// Shortcode [f1_countdown]
+// Shortcode [f1_countdown] – umożliwia wstawienie widgetu w treści strony lub wpisu
 function f1_countdown_shortcode() {
     return '<div id="f1-countdown">
-        <div class="f1-flex-row">
-            <div class="f1-countdown-info">
-                <strong><span id="session-name"></span> - <span id="gp-name"></span></strong><br>
-                <span id="countdown-timer">Ładowanie...</span>
-            </div>
-            <div id="calendar-buttons" style="margin-left:16px; display:none;">
-                <a id="google-calendar-btn" href="#" target="_blank" rel="noopener" style="margin-right:8px;">Dodaj do Google</a>
-                <a id="outlook-calendar-btn" href="#" target="_blank" rel="noopener">Dodaj do Outlook</a>
-            </div>
+        <div class="f1-countdown-info">
+            <strong><span id="session-name"></span> - <span id="gp-name"></span></strong><br>
+            <span id="countdown-timer">Ładowanie...</span>
+        </div>
+        <div id="calendar-buttons" style="display:none;">
+            <a id="google-calendar-btn" href="#" target="_blank" rel="noopener" style="margin-bottom:8px;">Dodaj do Google</a>
+            <a id="outlook-calendar-btn" href="#" target="_blank" rel="noopener">Dodaj do Outlook</a>
         </div>
     </div>';
 }
 add_shortcode('f1_countdown', 'f1_countdown_shortcode');
 
-// Usuwanie <p> i <br> wokół shortcode
+// Usuwanie <p> i <br> wokół shortcode, aby widget nie był otoczony niepotrzebnymi znacznikami HTML
 add_filter('the_content', function($content) {
     $content = preg_replace('/<p>\s*(\[f1_countdown[^\]]*\])\s*<\/p>/', '$1', $content);
     $content = preg_replace('/(<br\s*\/?>\s*)+(\[f1_countdown[^\]]*\])(\s*<br\s*\/?>)+/', '$2', $content);
     return $content;
 }, 99);
 
-// Dodaj style do <head>
+// Dodaj style CSS do <head> strony – wygląd widgetu i responsywność
 function f1_add_styles() {
     echo '<style>
         #f1-countdown {
-            padding: 10px 16px;
+            padding: 10px 12px;
             font-size: 15px;
-            font-family: "Segoe UI", Tahoma, sans-serif;
-            text-align: center;
-            border-radius: 5px;
-            max-width: 520px;
+            border-radius: 8px;
+            max-width: 300px;
             margin: 12px auto;
-            white-space: nowrap;
-            transition: all 0.3s ease-in-out;
-        }
-        #f1-countdown .f1-flex-row {
+            background-color: #cc0000;
+            color: #fff;
             display: flex;
             align-items: center;
             justify-content: space-between;
-            gap: 12px;
-            flex-wrap: wrap;
+            flex-wrap: nowrap;
+            min-height: 60px;
         }
         #f1-countdown .f1-countdown-info {
-            flex: 1 1 auto;
-            min-width: 0;
+            flex: 1 1 220px;
+            min-width: 120px;
+            flex-direction: column;
+            justify-content: center;
+            align-items: flex-start;
+            gap: 6px;
         }
         #calendar-buttons {
-            margin-top: 0;
-            margin-left: 16px;
             display: flex;
-            flex-direction: row;
+            flex-direction: column;
             gap: 6px;
+            min-width: 120px;
+            align-items: flex-end;
+            justify-content: center;
         }
         #calendar-buttons a {
             min-width: 110px;
-            text-align: center;
             font-size: 13px;
-            padding: 6px 12px;
+            padding: 6px 10px;
             border-radius: 4px;
-            font-weight: 500;
             text-decoration: none;
             color: #fff;
-            background: linear-gradient(90deg, #4285F4 0%, #34A853 100%);
-            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
-            transition: background 0.2s, transform 0.2s;
-            border: none;
-            outline: none;
-            cursor: pointer;
         }
-        #calendar-buttons a#google-calendar-btn {
-            background: linear-gradient(90deg, #4285F4 0%, #34A853 100%);
-        }
-        #calendar-buttons a#outlook-calendar-btn {
-            background: linear-gradient(90deg, #0072C6 0%, #00A4EF 100%);
-        }
-        #calendar-buttons a:hover, #calendar-buttons a:focus {
-            filter: brightness(1.1);
-            transform: translateY(-2px) scale(1.04);
-            box-shadow: 0 4px 16px rgba(0,0,0,0.12);
-            text-decoration: none;
-        }
-        @media (prefers-color-scheme: dark) {
+        @media (max-width: 700px) {
             #f1-countdown {
-                background-color: #111;
-                color: #fff;
-                border: 1px solid #444;
+                flex-direction: column;
+                align-items: stretch;
+                gap: 8px;
+                padding: 8px 4px;
+                min-height: unset;
             }
-            #calendar-buttons a {
-                color: #fff;
+            #f1-countdown .f1-countdown-info {
+                align-items: center;
+                text-align: center;
+                gap: 4px;
             }
-        }
-        @media (prefers-color-scheme: light) {
-            #f1-countdown {
-                background-color: #cc0000;
-                color: white;
+            #calendar-buttons {
+                align-items: center;
+                min-width: 0;
+                width: 100%;
+                gap: 4px;
             }
         }
     </style>';
 }
 add_action('wp_head', 'f1_add_styles');
 
-// CRON: powiadomienia e-mail
+// CRON: powiadomienia e-mail o nadchodzącej sesji
 function f1_check_and_send_notification() {
     if (!get_option('f1_enable_notifications', true)) return;
     $session = f1_get_relevant_session();
+    // Sprawdź, czy jest nadchodząca sesja i czy powiadomienie nie zostało już wysłane
     if ($session['status'] === 'upcoming' && !empty($session['session_datetime'])) {
         $target = strtotime($session['session_datetime']);
         $now = time();
+        // Powiadomienie na godzinę przed sesją (z tolerancją 10 minut)
         if ($target - $now <= 3600 && $target - $now > 3540) {
             $transient_key = 'f1_notified_' . md5($session['gp_name'] . $session['session_name'] . $session['session_datetime']);
             if (!get_transient($transient_key)) {
@@ -182,6 +170,7 @@ function f1_check_and_send_notification() {
                 $users = get_users(['role__in' => $roles]);
                 $subject = get_option('f1_notification_subject', 'Przypomnienie: Nadchodzi sesja F1!');
                 $body = get_option('f1_notification_body', 'Już za godzinę rozpoczyna się sesja: {session_name} podczas {gp_name}\nStart: {session_datetime}');
+                // Podmień zmienne w treści powiadomienia
                 $body = str_replace(
                     ['{session_name}', '{gp_name}', '{session_datetime}'],
                     [$session['session_name'], $session['gp_name'], $session['session_datetime']],
@@ -190,6 +179,7 @@ function f1_check_and_send_notification() {
                 $errors = [];
                 foreach ($users as $user) {
                     if (!empty($user->user_email)) {
+                        // Wyślij e-mail i zaloguj zdarzenie
                         $sent = wp_mail($user->user_email, $subject, $body);
                         f1_log_event(
                             'notify',
@@ -201,6 +191,7 @@ function f1_check_and_send_notification() {
                         if (!$sent) $errors[] = $user->user_email;
                     }
                 }
+                // Jeśli były błędy, wyślij powiadomienie do administratora i zaloguj błąd
                 if (!empty($errors)) {
                     $admin_email = get_option('f1_notification_email', get_option('admin_email'));
                     $error_subject = '[F1 Countdown] Błąd wysyłki powiadomień';
@@ -208,11 +199,13 @@ function f1_check_and_send_notification() {
                     wp_mail($admin_email, $error_subject, $error_message);
                     f1_log_event('error', $admin_email, $error_subject, $error_message, 'FAIL', 'Błąd wysyłki do: ' . implode(', ', $errors));
                 }
+                // Ustaw transient, aby nie wysyłać powiadomień wielokrotnie
                 set_transient($transient_key, 1, 2 * HOUR_IN_SECONDS);
             }
         }
     }
 }
+// Rejestracja i usuwanie zadania CRON przy aktywacji/dezaktywacji wtyczki
 register_activation_hook(__FILE__, function() {
     if (!wp_next_scheduled('f1_check_session_event')) {
         wp_schedule_event(time(), 'five_minutes', 'f1_check_session_event');
@@ -221,6 +214,7 @@ register_activation_hook(__FILE__, function() {
 register_deactivation_hook(__FILE__, function() {
     wp_clear_scheduled_hook('f1_check_session_event');
 });
+// Dodanie własnego interwału CRON (co 5 minut)
 add_filter('cron_schedules', function($schedules) {
     $schedules['five_minutes'] = [
         'interval' => 300,
@@ -230,7 +224,7 @@ add_filter('cron_schedules', function($schedules) {
 });
 add_action('f1_check_session_event', 'f1_check_and_send_notification');
 
-// Panel administratora – menu
+// Panel administratora – menu w Ustawieniach WordPressa
 add_action('admin_menu', function() {
     add_options_page(
         'F1 Countdown – Ustawienia',
@@ -240,7 +234,7 @@ add_action('admin_menu', function() {
         'f1_countdown_settings_page'
     );
 });
-// Panel administratora – rejestracja ustawień
+// Rejestracja ustawień w panelu administratora
 add_action('admin_init', function() {
     register_setting('f1_countdown_options', 'f1_notification_email', [
         'type' => 'string',
@@ -269,7 +263,7 @@ add_action('admin_init', function() {
     ]);
 });
 
-// Funkcja do zaawansowanego logowania zdarzeń
+// Funkcja do zaawansowanego logowania zdarzeń (powiadomienia, testy, błędy)
 function f1_log_event($type, $email, $subject, $body, $status, $info = '') {
     $logs = get_option('f1_notification_logs', []);
     $logs[] = [
@@ -281,11 +275,12 @@ function f1_log_event($type, $email, $subject, $body, $status, $info = '') {
         'status'  => $status, // 'OK' lub 'FAIL'
         'info'    => $info
     ];
-    if (count($logs) > 100) array_shift($logs); // max 100 wpisów
+    // Ogranicz liczbę logów do 100
+    if (count($logs) > 100) array_shift($logs);
     update_option('f1_notification_logs', $logs);
 }
 
-// Obsługa testu wysyłki
+// Obsługa testu wysyłki powiadomienia z panelu administratora
 add_action('admin_post_f1_send_test_email', function() {
     if (!current_user_can('manage_options') || !check_admin_referer('f1_send_test_email')) {
         wp_die('Brak uprawnień.');
@@ -293,6 +288,7 @@ add_action('admin_post_f1_send_test_email', function() {
     $to = get_option('f1_notification_email', get_option('admin_email'));
     $subject = get_option('f1_notification_subject', 'Przypomnienie: Nadchodzi sesja F1!');
     $body = get_option('f1_notification_body', 'Już za godzinę rozpoczyna się sesja: {session_name} podczas {gp_name}\nStart: {session_datetime}');
+    // Podstaw przykładowe dane do testu
     $body = str_replace(
         ['{session_name}', '{gp_name}', '{session_datetime}'],
         ['TEST', 'TEST GP', date('Y-m-d H:i:s')],
@@ -308,7 +304,7 @@ add_action('admin_post_f1_send_test_email', function() {
     exit;
 });
 
-// Dodaj przycisk czyszczenia logów
+// Obsługa czyszczenia logów z panelu administratora
 add_action('admin_post_f1_clear_logs', function() {
     if (!current_user_can('manage_options') || !check_admin_referer('f1_clear_logs')) {
         wp_die('Brak uprawnień.');
@@ -318,7 +314,7 @@ add_action('admin_post_f1_clear_logs', function() {
     exit;
 });
 
-// Panel administratora – wyświetlanie zaawansowanych logów
+// Panel administratora – wyświetlanie ustawień i logów
 function f1_countdown_settings_page() {
     $logs = get_option('f1_notification_logs', []);
     $filter = isset($_GET['log_type']) ? sanitize_text_field($_GET['log_type']) : '';
@@ -370,23 +366,27 @@ function f1_countdown_settings_page() {
             </table>
             <?php submit_button(); ?>
         </form>
+        <!-- Przycisk do wysyłki testowego powiadomienia -->
         <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>" style="margin-top:20px;">
             <?php wp_nonce_field('f1_send_test_email'); ?>
             <input type="hidden" name="action" value="f1_send_test_email" />
             <input type="submit" class="button button-secondary" value="Wyślij testowe powiadomienie e-mail" />
         </form>
+        <!-- Przycisk do czyszczenia logów -->
         <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>" style="display:inline;">
             <?php wp_nonce_field('f1_clear_logs'); ?>
             <input type="hidden" name="action" value="f1_clear_logs" />
             <input type="submit" class="button button-small" value="Wyczyść logi" onclick="return confirm('Na pewno wyczyścić logi?');" />
         </form>
         <h2 style="margin-top:32px;">Logi powiadomień</h2>
+        <!-- Filtrowanie logów po typie -->
         <div style="margin-bottom:10px;">
             <a href="<?php echo esc_url(remove_query_arg('log_type')); ?>" class="button button-small<?php if (!$filter) echo ' button-primary'; ?>">Wszystkie</a>
             <a href="<?php echo esc_url(add_query_arg('log_type', 'notify')); ?>" class="button button-small<?php if ($filter==='notify') echo ' button-primary'; ?>">Powiadomienia</a>
             <a href="<?php echo esc_url(add_query_arg('log_type', 'test')); ?>" class="button button-small<?php if ($filter==='test') echo ' button-primary'; ?>">Testy</a>
             <a href="<?php echo esc_url(add_query_arg('log_type', 'error')); ?>" class="button button-small<?php if ($filter==='error') echo ' button-primary'; ?>">Błędy</a>
         </div>
+        <!-- Tabela logów -->
         <div style="background:#fff; border:1px solid #ccc; max-height:350px; overflow:auto; padding:10px;">
             <?php
             $filtered = $filter ? array_filter($logs, fn($l) => $l['type'] === $filter) : $logs;
