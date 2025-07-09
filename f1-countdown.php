@@ -2,7 +2,7 @@
 /*
 Plugin Name: F1 Countdown Timer
 Description: Odliczanie do najbliższej sesji F1 lub informacja o trwającej sesji.
-Version: 1.2
+Version: 1.2.1
 Author URI: https://f1results.pl
 License: GPL2
 Author: Marcin
@@ -150,6 +150,23 @@ function f1_add_styles() {
                 gap: 4px;
             }
         }
+        .f1-weekend-sessions {
+            background: #fff;
+            color: #222;
+            border-radius: 8px;
+            padding: 12px 16px;
+            margin: 16px auto;
+            max-width: 350px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+            font-size: 15px;
+        }
+        .f1-weekend-sessions ul {
+            margin: 8px 0 0 0;
+            padding-left: 18px;
+        }
+        .f1-weekend-sessions li {
+            margin-bottom: 4px;
+        }    
     </style>';
 }
 add_action('wp_head', 'f1_add_styles');
@@ -422,4 +439,51 @@ function f1_countdown_settings_page() {
     </div>
     <?php
 }
+
+/**
+ * Zwraca HTML z listą wszystkich sesji dla najbliższego weekendu GP.
+ */
+function f1_weekend_sessions_shortcode() {
+    $json_path = plugin_dir_path(__FILE__) . 'data/f1_schedule.json';
+    if (!file_exists($json_path)) {
+        return '<div class="f1-weekend-sessions">Brak danych o kalendarzu F1.</div>';
+    }
+    $json = file_get_contents($json_path);
+    $calendar = json_decode($json, true);
+    if (!is_array($calendar)) {
+        return '<div class="f1-weekend-sessions">Błąd danych kalendarza.</div>';
+    }
+    $now = time();
+    $next_gp = null;
+    $min_diff = PHP_INT_MAX;
+    // Znajdź najbliższy weekend GP (z przyszłą lub trwającą sesją)
+    foreach ($calendar as $gp) {
+        if (empty($gp['sessions']) || !is_array($gp['sessions'])) continue;
+        foreach ($gp['sessions'] as $session) {
+            if (empty($session['datetime'])) continue;
+            $start_time = strtotime($session['datetime']);
+            if (!$start_time) continue;
+            if ($start_time >= $now && ($start_time - $now) < $min_diff) {
+                $min_diff = $start_time - $now;
+                $next_gp = $gp;
+            }
+        }
+    }
+    if (!$next_gp) {
+        return '<div class="f1-weekend-sessions">Brak nadchodzących weekendów F1.</div>';
+    }
+    // Buduj HTML z listą sesji
+    $html = '<div class="f1-weekend-sessions">';
+    $html .= '<strong>' . esc_html($next_gp['gp_name']) . '</strong>';
+    $html .= '<ul style="margin:8px 0 0 0; padding-left:18px;">';
+    foreach ($next_gp['sessions'] as $session) {
+        $dt = !empty($session['datetime']) ? date_i18n('D, H:i', strtotime($session['datetime'])) : '';
+        $html .= '<li><b>' . esc_html($session['name']) . '</b>';
+        if ($dt) $html .= ' <span style="color:#888;">(' . esc_html($dt) . ')</span>';
+        $html .= '</li>';
+    }
+    $html .= '</ul></div>';
+    return $html;
+}
+add_shortcode('f1_weekend_sessions', 'f1_weekend_sessions_shortcode');
 ?>
