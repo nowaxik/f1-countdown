@@ -76,7 +76,7 @@ function f1_countdown_shortcode() {
         </div>
         <div id="calendar-buttons" style="display:none;">
             <a id="google-calendar-btn" href="#" target="_blank" rel="noopener" style="margin-bottom:8px;">Dodaj do Google</a>
-            <a id="outlook-calendar-btn" href="#" target="_blank" rel="noopener">Dodaj do Outlook</a>
+            <a id="outlook-calendar-btn" href="#" rel="noopener">Dodaj do Outlook</a>
         </div>
     </div>';
 }

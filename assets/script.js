@@ -34,40 +34,39 @@ document.addEventListener('DOMContentLoaded', function () {
     // Dodaj obsługę przycisków kalendarza
     const calendarDiv = document.getElementById('calendar-buttons');
     const googleBtn = document.getElementById('google-calendar-btn');
-    const outlookBtn = document.getElementById('outlook-calendar-btn');
+    const appleBtn = document.getElementById('outlook-calendar-btn'); // zmień id na apple-calendar-btn jeśli chcesz
 
-    if (calendarDiv && googleBtn && outlookBtn && f1_data.status === 'upcoming') {
-        // Przygotuj dane do kalendarza
-        const title = encodeURIComponent(`${f1_data.session_name} - ${f1_data.gp_name}`);
+    if (calendarDiv && googleBtn && appleBtn && f1_data.status === 'upcoming') {
+        const title = `${f1_data.session_name} - ${f1_data.gp_name}`;
         const start = new Date(f1_data.session_datetime);
-        // Domyślnie 60 minut, jeśli brak duration_minutes
         const duration = f1_data.duration_minutes ? parseInt(f1_data.duration_minutes) : 60;
         const end = new Date(start.getTime() + duration * 60000);
 
-        // Format daty: YYYYMMDDTHHMMSSZ (UTC)
         function toCalDate(date) {
             return date.toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z';
         }
 
-        // Google Calendar URL
-        const googleUrl = `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${title}&dates=${toCalDate(start)}/${toCalDate(end)}&details=F1%20Countdown%20Timer`;
-
-        // Outlook Calendar URL (ICS file)
-        const outlookUrl = `data:text/calendar;charset=utf-8,` + encodeURIComponent(
-            `BEGIN:VCALENDAR
-            VERSION:2.0
-            BEGIN:VEVENT
-            URL:https://f1results.pl
-            DTSTART:${toCalDate(start)}
-            DTEND:${toCalDate(end)}
-            SUMMARY:${title}
-            DESCRIPTION=F1 Countdown Timer
-            END:VEVENT
-            END:VCALENDAR`
-        );
-
+        // Google Calendar
+        const googleUrl = `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent(title)}&dates=${toCalDate(start)}/${toCalDate(end)}&details=F1%20Countdown%20Timer`;
         googleBtn.href = googleUrl;
-        outlookBtn.href = outlookUrl;
+
+        // Apple/Outlook Calendar (ICS)
+        const icsContent =
+            `BEGIN:VCALENDAR
+VERSION:2.0
+BEGIN:VEVENT
+SUMMARY:${title}
+DTSTART:${toCalDate(start)}
+DTEND:${toCalDate(end)}
+DESCRIPTION:F1 Countdown Timer
+END:VEVENT
+END:VCALENDAR`;
+
+        const icsBlob = new Blob([icsContent], { type: 'text/calendar' });
+        const icsUrl = URL.createObjectURL(icsBlob);
+        appleBtn.href = icsUrl;
+        appleBtn.download = "f1_event.ics";
+
         calendarDiv.style.display = 'block';
     }
 
@@ -102,4 +101,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
     // Ustawienie interwału, który będzie wywoływał funkcję `updateCountdown` co sekundę (1000 ms)
     setInterval(updateCountdown, 1000);
+
+    
+    
 });
