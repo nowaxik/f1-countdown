@@ -1,4 +1,4 @@
-F1 Countdown Timer WordPress Plugin
+F1 Countdown Timer WordPress Plugin </br>
 F1 Countdown Timer is a WordPress plugin that displays a live countdown to the next Formula 1 session (practice, qualifying, sprint, or race) directly on your website. It automatically updates to show the current or upcoming session, and provides users with the ability to add the event to their Google or Outlook/Apple calendar with a single click.
 
 Features
