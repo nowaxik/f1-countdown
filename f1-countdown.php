@@ -11,7 +11,10 @@ Author: Marcin
 // Zabezpieczenie przed bezpośrednim dostępem do pliku
 if (!defined('ABSPATH')) exit;
 
-// Funkcja pobierająca aktualną lub najbliższą sesję F1 z pliku JSON
+/**
+ * Pobiera aktualną lub najbliższą sesję F1 z pliku JSON z kalendarzem.
+ * Zwraca tablicę z informacjami o sesji (lub status 'season_over' jeśli nie ma żadnej).
+ */
 function f1_get_relevant_session() {
     $json_path = plugin_dir_path(__FILE__) . 'data/f1_schedule.json';
     if (!file_exists($json_path)) {
@@ -26,6 +29,7 @@ function f1_get_relevant_session() {
     $active_session = null;
     $next_session = null;
     $min_diff = PHP_INT_MAX;
+    // Przeglądaj wszystkie GP i ich sesje
     foreach ($calendar as $gp) {
         if (empty($gp['sessions']) || !is_array($gp['sessions'])) continue;
         foreach ($gp['sessions'] as $session) {
@@ -33,7 +37,7 @@ function f1_get_relevant_session() {
             $start_time = strtotime($session['datetime']);
             if (!$start_time) continue;
             $end_time = $start_time + ((isset($session['duration_minutes']) ? $session['duration_minutes'] : 60) * 60);
-            // Sprawdź, czy sesja trwa
+            // Jeśli sesja trwa - zwróć ją jako aktywną
             if ($now >= $start_time && $now <= $end_time) {
                 $active_session = [
                     'status' => 'active',
@@ -42,7 +46,7 @@ function f1_get_relevant_session() {
                 ];
                 break 2; // Zakończ pętlę, jeśli znaleziono aktywną sesję
             }
-            // Sprawdź, czy to najbliższa przyszła sesja
+            // Jeśli to najbliższa przyszła sesja - zapamiętaj ją
             if ($start_time > $now && ($start_time - $now) < $min_diff) {
                 $min_diff = $start_time - $now;
                 $next_session = [
@@ -59,7 +63,9 @@ function f1_get_relevant_session() {
     return $active_session ?: $next_session ?: ['status' => 'season_over'];
 }
 
-// Załaduj JS i przekaż dane do frontendu (do obsługi odliczania po stronie klienta)
+/**
+ * Ładuje plik JS i przekazuje dane o najbliższej sesji do frontendu (do obsługi odliczania po stronie klienta).
+ */
 function f1_enqueue_scripts() {
     wp_enqueue_script('f1-countdown-script', plugin_dir_url(__FILE__) . 'assets/script.js', [], '1.2', true);
     $session = f1_get_relevant_session();
@@ -67,7 +73,10 @@ function f1_enqueue_scripts() {
 }
 add_action('wp_enqueue_scripts', 'f1_enqueue_scripts');
 
-// Shortcode [f1_countdown] – umożliwia wstawienie widgetu w treści strony lub wpisu
+/**
+ * Shortcode [f1_countdown] – umożliwia wstawienie widgetu z odliczaniem w treści strony lub wpisu.
+ * Zwraca HTML widgetu z miejscem na odliczanie i przyciski do kalendarzy.
+ */
 function f1_countdown_shortcode() {
     return '<div id="f1-countdown">
         <div class="f1-countdown-info">
@@ -82,14 +91,18 @@ function f1_countdown_shortcode() {
 }
 add_shortcode('f1_countdown', 'f1_countdown_shortcode');
 
-// Usuwanie <p> i <br> wokół shortcode, aby widget nie był otoczony niepotrzebnymi znacznikami HTML
+/**
+ * Usuwa <p> i <br> wokół shortcode, aby widget nie był otoczony niepotrzebnymi znacznikami HTML.
+ */
 add_filter('the_content', function($content) {
     $content = preg_replace('/<p>\s*(\[f1_countdown[^\]]*\])\s*<\/p>/', '$1', $content);
     $content = preg_replace('/(<br\s*\/?>\s*)+(\[f1_countdown[^\]]*\])(\s*<br\s*\/?>)+/', '$2', $content);
     return $content;
 }, 99);
 
-// Dodaj style CSS do <head> strony – wygląd widgetu i responsywność
+/**
+ * Dodaje style CSS do <head> strony – wygląd widgetu i responsywność.
+ */
 function f1_add_styles() {
     echo '<style>
         #f1-countdown {
@@ -171,7 +184,10 @@ function f1_add_styles() {
 }
 add_action('wp_head', 'f1_add_styles');
 
-// CRON: powiadomienia e-mail o nadchodzącej sesji
+/**
+ * CRON: Powiadomienia e-mail o nadchodzącej sesji.
+ * Wysyła powiadomienie do wybranych ról użytkowników na godzinę przed startem sesji.
+ */
 function f1_check_and_send_notification() {
     if (!get_option('f1_enable_notifications', true)) return;
     $session = f1_get_relevant_session();
@@ -241,7 +257,10 @@ add_filter('cron_schedules', function($schedules) {
 });
 add_action('f1_check_session_event', 'f1_check_and_send_notification');
 
-// Panel administratora – menu w Ustawieniach WordPressa
+/**
+ * Panel administratora – menu w Ustawieniach WordPressa.
+ * Dodaje stronę ustawień do menu "Ustawienia".
+ */
 add_action('admin_menu', function() {
     add_options_page(
         'F1 Countdown – Ustawienia',
@@ -280,7 +299,10 @@ add_action('admin_init', function() {
     ]);
 });
 
-// Funkcja do zaawansowanego logowania zdarzeń (powiadomienia, testy, błędy)
+/**
+ * Funkcja do zaawansowanego logowania zdarzeń (powiadomienia, testy, błędy).
+ * Logi są przechowywane w opcji WordPressa.
+ */
 function f1_log_event($type, $email, $subject, $body, $status, $info = '') {
     $logs = get_option('f1_notification_logs', []);
     $logs[] = [
@@ -297,7 +319,10 @@ function f1_log_event($type, $email, $subject, $body, $status, $info = '') {
     update_option('f1_notification_logs', $logs);
 }
 
-// Obsługa testu wysyłki powiadomienia z panelu administratora
+/**
+ * Obsługa testu wysyłki powiadomienia z panelu administratora.
+ * Wysyła testowy e-mail na podany adres.
+ */
 add_action('admin_post_f1_send_test_email', function() {
     if (!current_user_can('manage_options') || !check_admin_referer('f1_send_test_email')) {
         wp_die('Brak uprawnień.');
@@ -321,7 +346,9 @@ add_action('admin_post_f1_send_test_email', function() {
     exit;
 });
 
-// Obsługa czyszczenia logów z panelu administratora
+/**
+ * Obsługa czyszczenia logów z panelu administratora.
+ */
 add_action('admin_post_f1_clear_logs', function() {
     if (!current_user_can('manage_options') || !check_admin_referer('f1_clear_logs')) {
         wp_die('Brak uprawnień.');
@@ -331,7 +358,10 @@ add_action('admin_post_f1_clear_logs', function() {
     exit;
 });
 
-// Panel administratora – wyświetlanie ustawień i logów
+/**
+ * Panel administratora – wyświetlanie ustawień i logów.
+ * Pozwala zarządzać powiadomieniami i przeglądać historię wysyłek.
+ */
 function f1_countdown_settings_page() {
     $logs = get_option('f1_notification_logs', []);
     $filter = isset($_GET['log_type']) ? sanitize_text_field($_GET['log_type']) : '';
@@ -347,6 +377,7 @@ function f1_countdown_settings_page() {
             <?php settings_fields('f1_countdown_options'); ?>
             <?php do_settings_sections('f1_countdown_options'); ?>
             <table class="form-table">
+                <!-- Pola ustawień powiadomień -->
                 <tr valign="top">
                     <th scope="row">Adres e-mail do powiadomień</th>
                     <td>
@@ -441,7 +472,8 @@ function f1_countdown_settings_page() {
 }
 
 /**
- * Zwraca HTML z listą wszystkich sesji dla najbliższego weekendu GP.
+ * Shortcode [f1_weekend_sessions] – wyświetla listę wszystkich sesji najbliższego weekendu GP F1.
+ * Przeszukuje kalendarz i pokazuje wszystkie sesje (FP1, FP2, Q, Race itd.) dla najbliższego GP.
  */
 function f1_weekend_sessions_shortcode() {
     $json_path = plugin_dir_path(__FILE__) . 'data/f1_schedule.json';
