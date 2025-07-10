@@ -53,14 +53,14 @@ document.addEventListener('DOMContentLoaded', function () {
         // Apple/Outlook Calendar (ICS)
         const icsContent =
             `BEGIN:VCALENDAR
-VERSION:2.0
-BEGIN:VEVENT
-SUMMARY:${title}
-DTSTART:${toCalDate(start)}
-DTEND:${toCalDate(end)}
-DESCRIPTION:F1 Countdown Timer
-END:VEVENT
-END:VCALENDAR`;
+            VERSION:2.0
+            BEGIN:VEVENT
+            SUMMARY:${title}
+            DTSTART:${toCalDate(start)}
+            DTEND:${toCalDate(end)}
+            DESCRIPTION:F1 Countdown Timer
+            END:VEVENT
+            END:VCALENDAR`;
 
         const icsBlob = new Blob([icsContent], { type: 'text/calendar' });
         const icsUrl = URL.createObjectURL(icsBlob);
