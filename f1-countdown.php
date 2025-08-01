@@ -1,11 +1,11 @@
 <?php
 /*
-Plugin Name: F1 Countdown Timer
+Plugin Name: F1 Countdown Timer v2.0
 Description: Odliczanie do najbliższej sesji F1 lub informacja o trwającej sesji.
 Version: 1.2.1
 Author URI: https://f1results.pl
 License: GPL2
-Author: Marcin
+Author: Marcin Nowak
 */
 
 // Zabezpieczenie przed bezpośrednim dostępem do pliku
@@ -78,16 +78,16 @@ add_action('wp_enqueue_scripts', 'f1_enqueue_scripts');
  * Zwraca HTML widgetu z miejscem na odliczanie i przyciski do kalendarzy.
  */
 function f1_countdown_shortcode() {
+    $plugin_url = plugin_dir_url(__FILE__);
     return '<div id="f1-countdown">
         <div class="f1-countdown-info">
             <strong><span id="session-name"></span> - <span id="gp-name"></span></strong><br>
             <span id="countdown-timer">Ładowanie...</span>
         </div>
         <div id="calendar-buttons" style="display:none;">
-            <a id="google-calendar-btn" href="#" target="_blank" rel="noopener" style="margin-bottom:8px;">Dodaj do Google</a>
-            <a id="outlook-calendar-btn" href="#" rel="noopener">Dodaj do Outlook</a>
-        </div>
-    </div>';
+            <a id="google-calendar-btn" href="#" target="_blank" rel="noopener" title="Dodaj do Google"><img src="' . esc_url($plugin_url . 'assets/google.png') . '" alt="Google Calendar" style="width:28px;height:28px;" /></a>
+            <a id="outlook-calendar-btn" href="#" rel="noopener" title="Dodaj do Outlook"><img src="' . esc_url($plugin_url . 'assets/outlook.png') . '" alt="Outlook/Apple Calendar" style="width:28px;height:28px;" /></a>
+        </div></div>';
 }
 add_shortcode('f1_countdown', 'f1_countdown_shortcode');
 
@@ -106,10 +106,10 @@ add_filter('the_content', function($content) {
 function f1_add_styles() {
     echo '<style>
         #f1-countdown {
-            padding: 10px 12px;
+            padding: 12px 40px;
             font-size: 15px;
             border-radius: 8px;
-            max-width: 300px;
+            max-width: 400px;
             margin: 12px auto;
             background-color: #cc0000;
             color: #fff;
@@ -120,7 +120,7 @@ function f1_add_styles() {
             min-height: 0px;
         }
         #f1-countdown .f1-countdown-info {
-            flex: 1 1 220px;
+            flex: 1 1 20px;
             min-width: 120px;
             flex-direction: column;
             justify-content: center;
@@ -128,39 +128,53 @@ function f1_add_styles() {
             gap: 6px;
         }
         #calendar-buttons {
-            display: flex;
-            flex-direction: column;
-            gap: 6px;
+            display: flex !important;
+            flex-direction: row !important;
+            gap: 6px !important;
             min-width: 120px;
-            align-items: flex-end;
-            justify-content: center;
+            align-items: center !important;
+            justify-content: flex-end !important;
         }
         #calendar-buttons a {
-            min-width: 110px;
-            font-size: 13px;
-            padding: 6px 10px;
-            border-radius: 4px;
-            text-decoration: none;
-            color: #fff;
+            min-width: unset;
+            padding: 4px;
+            background: none;
+        }
+        #calendar-buttons img, #calendar-buttons svg {
+            width: 28px;
+            height: 28px;
+            vertical-align: middle;
+            transition: transform 0.2s;
+        }
+        #calendar-buttons a:hover img, #calendar-buttons a:hover svg {
+            transform: scale(1.15);
         }
         @media (max-width: 700px) {
             #f1-countdown {
                 flex-direction: column;
-                align-items: stretch;
+                align-items: center;
+                justify-content: flex-start;
                 gap: 8px;
                 padding: 8px 4px;
                 min-height: unset;
+                max-width: 100vw;
+                width: 100%;
+                height: auto; /* Dodane */
+                box-sizing: border-box; /* Dodane */
             }
             #f1-countdown .f1-countdown-info {
                 align-items: center;
                 text-align: center;
                 gap: 4px;
+                width: 100%;      /* Dodane */
+                height: 50px;     /* Dodane */
             }
             #calendar-buttons {
-                align-items: center;
-                min-width: 0;
-                width: 100%;
-                gap: 4px;
+                width: auto !important;
+                min-width: 0 !important;
+                gap: 4px !important;
+                margin-top: 10px;
+                justify-content: center !important;
             }
         }
         .f1-weekend-sessions {
